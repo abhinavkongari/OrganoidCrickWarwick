@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Magnetic Tweezers Force Map</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        
+        .main-content {
+            display: flex;
+            gap: 30px;
+        }
+        
+        .map-container {
+            flex: 2;
+            position: relative;
+        }
+        
+        canvas {
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            cursor: crosshair;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .info-panel {
+            flex: 1;
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .info-section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .info-section h3 {
+            margin-top: 0;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+        
+        .param {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .param-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .param-value {
+            color: #667eea;
+            font-weight: bold;
+        }
+        
+        #current-force {
+            font-size: 2em;
+            color: #e74c3c;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+            padding: 15px;
+            background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .marked-list {
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 0.9em;
+        }
+        
+        .marked-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: #e8f4f8;
+            border-radius: 5px;
+            border-left: 3px solid #667eea;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border-radius: 8px;
+            border: 2px solid #ffc107;
+        }
+        
+        .controls h4 {
+            margin-top: 0;
+            color: #856404;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-clear {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-clear:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.4);
+        }
+        
+        .btn-export {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-export:hover {
+            background: #229954;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.4);
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+        }
+        
+        .legend-item {
+            text-align: center;
+            font-size: 0.85em;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            margin: 0 auto 5px;
+            border-radius: 50%;
+            border: 2px solid #333;
+        }
+        
+        .instructions {
+            background: #d1ecf1;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #17a2b8;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        
+        .instructions ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧲 Interactive Magnetic Tweezers Force Map</h1>
+        <p class="subtitle">Click anywhere in the 1400×1400 frame to see force estimates</p>
+        
+        <div class="main-content">
+            <div class="map-container">
+                <canvas id="forceMap" width="900" height="900"></canvas>
+            </div>
+            
+            <div class="info-panel">
+                <div class="info-section">
+                    <h3>📍 Current Position</h3>
+                    <div class="param">
+                        <span class="param-label">X:</span>
+                        <span class="param-value" id="current-x">-</span>
+                    </div>
+                    <div class="param">
+                        <span class="param-label">Y:</span>
+                        <span class="param-value" id="current-y">-</span>
+                    </div>
+                    <div class="param">
+                        <span class="param-label">Distance:</span>
+                        <span class="param-value" id="current-dist">-</span>
+                    </div>
+                    <div id="current-force">- pN</div>
+                </div>
+                
+                <div class="info-section">
+                    <h3>⚙️ Force Model</h3>
+                    <div class="param">
+                        <span class="param-label">Model:</span>
+                        <span class="param-value">F = 25441 / r^1.36</span>
+                    </div>
+                    <div class="param">
+                        <span class="param-label">R²:</span>
+                        <span class="param-value">0.848</span>
+                    </div>
+                    <div class="param">
+                        <span class="param-label">Tip:</span>
+                        <span class="param-value">(459, 596) px</span>
+                    </div>
+                </div>
+                
+                <div class="info-section">
+                    <h3>📌 Marked Positions (<span id="marked-count">0</span>)</h3>
+                    <div class="marked-list" id="marked-list">
+                        <p style="color: #999; text-align: center; font-style: italic;">
+                            Click on map to mark positions
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="controls">
+                    <h4>🎮 Controls</h4>
+                    <button class="btn-clear" onclick="clearMarkers()">Clear All Markers</button>
+                    <button class="btn-export" onclick="exportData()">Export Marked Positions</button>
+                </div>
+                
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #8B0000;"></div>
+                        <div>High<br>>800 pN</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #FF4500;"></div>
+                        <div>Medium<br>400-800</div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: #FFD700;"></div>
+                        <div>Low<br><400 pN</div>
+                    </div>
+                </div>
+                
+                <div class="instructions">
+                    <strong>💡 Instructions:</strong>
+                    <ul>
+                        <li><strong>Hover:</strong> See force at cursor position</li>
+                        <li><strong>Click:</strong> Mark position permanently</li>
+                        <li><strong>Export:</strong> Download marked positions as CSV</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Force model parameters (from your calibration)
+        const A = 25440.8;
+        const n = 1.36;
+        const TIP_X = 459;
+        const TIP_Y = 596;
+        const PIXEL_SIZE_MICRONS = 0.11;
+        const FRAME_SIZE = 1400;
+        
+        // Canvas setup
+        const canvas = document.getElementById('forceMap');
+        const ctx = canvas.getContext('2d');
+        const canvasSize = canvas.width;
+        const scale = canvasSize / FRAME_SIZE;
+        
+        // Marked positions
+        let markedPositions = [];
+        
+        // Calculate force at position
+        function calculateForce(x_px, y_px) {
+            const distance_px = Math.sqrt((x_px - TIP_X)**2 + (y_px - TIP_Y)**2);
+            const distance_um = Math.max(distance_px * PIXEL_SIZE_MICRONS, 0.1);
+            const force_pN = A / Math.pow(distance_um, n);
+            return {distance: distance_um, force: force_pN};
+        }
+        
+        // Get color based on force
+        function getForceColor(force) {
+            if (force > 800) return '#8B0000';  // Dark red
+            if (force > 600) return '#DC143C';  // Crimson
+            if (force > 400) return '#FF4500';  // Orange red
+            if (force > 300) return '#FF8C00';  // Dark orange
+            if (force > 200) return '#FFD700';  // Gold
+            if (force > 100) return '#FFFF00';  // Yellow
+            return '#ADFF2F';  // Green yellow
+        }
+        
+        // Draw force map
+        function drawForceMap() {
+            // Generate force field
+            const resolution = 20;  // pixels per calculation
+            
+            for (let y = 0; y < FRAME_SIZE; y += resolution) {
+                for (let x = 0; x < FRAME_SIZE; x += resolution) {
+                    const result = calculateForce(x, y);
+                    const color = getForceColor(result.force);
+                    
+                    ctx.fillStyle = color;
+                    ctx.fillRect(x * scale, y * scale, resolution * scale, resolution * scale);
+                }
+            }
+            
+            // Draw distance circles
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            
+            const distances_um = [10, 20, 30, 40, 50, 60, 80, 100];
+            for (let dist_um of distances_um) {
+                const radius_px = (dist_um / PIXEL_SIZE_MICRONS) * scale;
+                ctx.beginPath();
+                ctx.arc(TIP_X * scale, TIP_Y * scale, radius_px, 0, 2 * Math.PI);
+                ctx.stroke();
+                
+                // Label
+                ctx.fillStyle = 'cyan';
+                ctx.font = 'bold 12px Arial';
+                ctx.fillText(`${dist_um}μm`, 
+                    TIP_X * scale + radius_px - 20, 
+                    TIP_Y * scale - 5);
+            }
+            
+            ctx.setLineDash([]);
+            
+            // Draw magnetic tip
+            ctx.fillStyle = 'cyan';
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(TIP_X * scale, TIP_Y * scale, 8, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Draw star points for tip
+            const starSize = 15;
+            ctx.fillStyle = 'yellow';
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let i = 0; i < 5; i++) {
+                const angle = (i * 4 * Math.PI / 5) - Math.PI / 2;
+                const x = TIP_X * scale + starSize * Math.cos(angle);
+                const y = TIP_Y * scale + starSize * Math.sin(angle);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            
+            // Draw marked positions
+            markedPositions.forEach((pos, idx) => {
+                ctx.fillStyle = 'yellow';
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 3;
+                
+                // Draw X marker
+                const size = 10;
+                const x = pos.x * scale;
+                const y = pos.y * scale;
+                
+                ctx.beginPath();
+                ctx.moveTo(x - size, y - size);
+                ctx.lineTo(x + size, y + size);
+                ctx.moveTo(x + size, y - size);
+                ctx.lineTo(x - size, y + size);
+                ctx.stroke();
+                
+                // Draw number
+                ctx.fillStyle = 'white';
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 3;
+                ctx.font = 'bold 14px Arial';
+                ctx.strokeText(`${idx + 1}`, x + 15, y - 5);
+                ctx.fillText(`${idx + 1}`, x + 15, y - 5);
+            });
+        }
+        
+        // Handle mouse move
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / scale;
+            const y = (e.clientY - rect.top) / scale;
+            
+            if (x >= 0 && x <= FRAME_SIZE && y >= 0 && y <= FRAME_SIZE) {
+                const result = calculateForce(x, y);
+                
+                document.getElementById('current-x').textContent = `${Math.round(x)} px`;
+                document.getElementById('current-y').textContent = `${Math.round(y)} px`;
+                document.getElementById('current-dist').textContent = `${result.distance.toFixed(1)} μm`;
+                document.getElementById('current-force').textContent = `${result.force.toFixed(1)} pN`;
+            }
+        });
+        
+        // Handle click
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / scale;
+            const y = (e.clientY - rect.top) / scale;
+            
+            if (x >= 0 && x <= FRAME_SIZE && y >= 0 && y <= FRAME_SIZE) {
+                const result = calculateForce(x, y);
+                
+                markedPositions.push({
+                    x: Math.round(x),
+                    y: Math.round(y),
+                    distance: result.distance,
+                    force: result.force
+                });
+                
+                updateMarkedList();
+                drawForceMap();
+            }
+        });
+        
+        // Update marked positions list
+        function updateMarkedList() {
+            const list = document.getElementById('marked-list');
+            const count = document.getElementById('marked-count');
+            
+            count.textContent = markedPositions.length;
+            
+            if (markedPositions.length === 0) {
+                list.innerHTML = '<p style="color: #999; text-align: center; font-style: italic;">Click on map to mark positions</p>';
+            } else {
+                list.innerHTML = markedPositions.map((pos, idx) => `
+                    <div class="marked-item">
+                        <strong>#${idx + 1}</strong>: (${pos.x}, ${pos.y}) px<br>
+                        📏 ${pos.distance.toFixed(1)} μm → 💪 <strong>${pos.force.toFixed(0)} pN</strong>
+                    </div>
+                `).join('');
+            }
+        }
+        
+        // Clear all markers
+        function clearMarkers() {
+            if (confirm('Clear all marked positions?')) {
+                markedPositions = [];
+                updateMarkedList();
+                drawForceMap();
+            }
+        }
+        
+        // Export data as CSV
+        function exportData() {
+            if (markedPositions.length === 0) {
+                alert('No positions marked yet!');
+                return;
+            }
+            
+            let csv = 'Position,X_pixels,Y_pixels,Distance_um,Force_pN\n';
+            markedPositions.forEach((pos, idx) => {
+                csv += `${idx + 1},${pos.x},${pos.y},${pos.distance.toFixed(2)},${pos.force.toFixed(2)}\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'marked_positions_forces.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+        
+        // Initialize
+        drawForceMap();
+    </script>
+</body>
+</html>
